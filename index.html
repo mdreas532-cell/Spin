@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPay – স্পিন ওয়ালেট</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Hind Siliguri', sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        .spin-panel {
+            max-width: 500px;
+            width: 100%;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0,20,40,0.25);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.5);
+            padding: 20px 18px 25px;
+        }
+        /* header */
+        .spin-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .back-home {
+            width: 45px;
+            height: 45px;
+            background: white;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #1e293b;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid #cbd5e1;
+        }
+        .back-home:hover {
+            background: #e2e8f0;
+            transform: scale(0.96);
+        }
+        .spin-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+        /* wallet card */
+        .wallet-badge {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 28px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+            margin-bottom: 20px;
+            border: 2px solid #fbbf24;
+        }
+        .wallet-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .wallet-amount {
+            font-size: 28px;
+            font-weight: 800;
+            background: rgba(255,255,255,0.1);
+            padding: 5px 18px;
+            border-radius: 40px;
+            letter-spacing: 1px;
+            color: #fde047;
+        }
+        /* wheel container */
+        .wheel-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 25px;
+        }
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 50%;
+            box-shadow: 0 15px 35px rgba(37,99,235,0.3);
+            transition: box-shadow 0.2s;
+            background: white;
+            border: 6px solid white;
+        }
+        .pointer {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 35px solid #dc2626;
+            filter: drop-shadow(0 6px 6px rgba(0,0,0,0.2));
+            z-index: 10;
+        }
+        .spin-btn {
+            width: 100%;
+            background: linear-gradient(145deg, #2563eb, #1d4ed8);
+            border: none;
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            padding: 18px;
+            border-radius: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin: 15px 0 12px;
+            box-shadow: 0 15px 25px #2563eb66;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        .spin-btn:disabled {
+            opacity: 0.5;
+            filter: grayscale(0.5);
+            box-shadow: none;
+            transform: scale(0.98);
+            cursor: not-allowed;
+        }
+        .spin-btn i {
+            font-size: 26px;
+        }
+        .info-grid {
+            display: flex;
+            gap: 12px;
+            margin: 18px 0 20px;
+        }
+        .info-card {
+            background: white;
+            flex: 1;
+            border-radius: 24px;
+            padding: 12px 5px;
+            text-align: center;
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.02);
+        }
+        .info-label {
+            font-size: 13px;
+            color: #475569;
+            font-weight: 600;
+        }
+        .info-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .history-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 12px 0 10px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .history-list {
+            background: #f8fafc;
+            border-radius: 28px;
+            padding: 15px;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 15px;
+        }
+        .history-item:last-child {
+            border: none;
+        }
+        .win-amount {
+            font-weight: 800;
+            color: #059669;
+            background: #d1fae5;
+            padding: 4px 14px;
+            border-radius: 40px;
+        }
+        .zero-amount {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .timestamp {
+            color: #64748b;
+            font-size: 12px;
+        }
+        .toast-message {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #10b981;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 60px;
+            font-weight: 600;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            transition: 0.3s;
+            z-index: 999;
+            opacity: 0;
+        }
+        .toast-message.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast-message.error { background: #ef4444; }
+        .toast-message.warning { background: #f59e0b; }
+        .maintenance-banner {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            border-radius: 18px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #b91c1c;
+            font-weight: 600;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="spin-panel" id="spinPanel">
+        <!-- header with back button (redirects to index.html) -->
+        <div class="spin-header">
+            <div class="back-home" onclick="goToDashboard()">
+                <i class="fa-solid fa-arrow-left"></i>
+            </div>
+            <h1><i class="fa-solid fa-dharmachakra" style="margin-right: 8px; color: #2563eb;"></i> স্পিন ওয়ালেট</h1>
+        </div>
+
+        <!-- spin wallet display (live) -->
+        <div class="wallet-badge">
+            <span class="wallet-label"><i class="fa-solid fa-coins" style="color: #fbbf24;"></i> স্পিন ওয়ালেট</span>
+            <span class="wallet-amount" id="spinWalletAmount">০.০০</span>
+        </div>
+
+        <!-- wheel and pointer -->
+        <div class="wheel-container">
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+            <div class="pointer"></div>
+        </div>
+
+        <!-- spin button & condition info -->
+        <button class="spin-btn" id="spinBtn" onclick="handleSpin()">
+            <i class="fa-solid fa-play"></i> স্পিন করুন
+        </button>
+
+        <!-- daily & interval info -->
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-label"><i class="fa-regular fa-clock"></i> আজ বাকি</div>
+                <div class="info-value" id="dailyRemain">-</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label"><i class="fa-solid fa-hourglass-half"></i> পরবর্তী</div>
+                <div class="info-value" id="nextSpinTimer">-</div>
+            </div>
+        </div>
+
+        <!-- history section -->
+        <div class="history-title">
+            <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i> স্পিন ইতিহাস
+        </div>
+        <div class="history-list" id="spinHistoryList">
+            <div style="text-align: center; padding: 20px; color: #64748b;">লোড হচ্ছে...</div>
+        </div>
+    </div>
+
+    <!-- toast container -->
+    <div id="toast" class="toast-message"></div>
+
+    <script>
+        // ---------- FIREBASE CONFIG (same as main project) ----------
+        const firebaseConfig = {
+            apiKey: "AIzaSyBY2R6jBre2pjrW3cN0QP8LGrLldgKWEtc",
+            authDomain: "smartpay-4cae4.firebaseapp.com",
+            projectId: "smartpay-4cae4",
+            storageBucket: "smartpay-4cae4.firebasestorage.app",
+            messagingSenderId: "531344716314",
+            appId: "1:531344716314:web:0eac7f60479bfd66f7d7a3"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ---------- GLOBALS ----------
+        let currentUser = null;
+        let userDocRef = null;
+        let spinSettings = null;
+        let spinWalletBalance = 0;
+        let lastSpinTime = null;
+        let todaySpinCount = 0;
+        let dailyLimit = 0;
+        let spinIntervalHours = 0;
+        let wheelBoxes = [];
+        let totalProbability = 0;
+        let isSpinning = false;          // prevent double spin
+        let spinUnsubscribers = [];
+
+        // canvas & wheel
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        let rotationAngle = 0;            // for animation (radians)
+        let spinAnimationFrame = null;
+
+        // ---------- AUTH STATE ----------
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                // not logged in → redirect to main app (index.html)
+                window.location.href = '/';  // or 'index.html'
+                return;
+            }
+            currentUser = user;
+            userDocRef = db.collection('users').doc(user.uid);
+            await loadInitialData();
+            // realtime user document (for spinWallet)
+            const unsubUser = userDocRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    spinWalletBalance = doc.data().spinWallet || 0;
+                    document.getElementById('spinWalletAmount').innerText = spinWalletBalance.toFixed(2);
+                }
+            });
+            spinUnsubscribers.push(unsubUser);
+            // realtime spin settings
+            const unsubSettings = db.collection('spin_settings').doc('config')
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        spinSettings = doc.data();
+                        applySettingsAndRefresh();
+                    } else {
+                        showToast('⚠️ সেটিংস পাওয়া যায়নি', 'warning');
+                    }
+                });
+            spinUnsubscribers.push(unsubSettings);
+            // history realtime
+            loadSpinHistory(user.uid);
+        });
+
+        // ---------- LOAD INITIAL DATA (once) ----------
+        async function loadInitialData() {
+            try {
+                // pre-fetch settings to draw wheel
+                const settingsSnap = await db.collection('spin_settings').doc('config').get();
+                if (settingsSnap.exists) {
+                    spinSettings = settingsSnap.data();
+                }
+                // fetch today's spin count and last spin from history
+                await refreshSpinLimits();
+                drawWheel(); // initial draw
+            } catch (e) {
+                console.error(e);
+                showToast('ডাটা লোড করতে সমস্যা', 'error');
+            }
+        }
+
+        async function refreshSpinLimits() {
+            if (!currentUser) return;
+            const startOfDay = new Date();
+            startOfDay.setHours(0,0,0,0);
+            const historyQuery = await db.collection('users').doc(currentUser.uid)
+                .collection('spin_history')
+                .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(startOfDay))
+                .orderBy('createdAt', 'desc')
+                .get();
+            todaySpinCount = historyQuery.size;
+            // last spin overall (for interval)
+            const lastSpinQuery = await db.collection('users').doc(currentUser.uid)
+                .collection('spin_history')
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+            if (!lastSpinQuery.empty) {
+                lastSpinTime = lastSpinQuery.docs[0].data().createdAt.toDate();
+            } else {
+                lastSpinTime = null;
+            }
+            updateInfoCards();
+        }
+
+        // ---------- APPLY SETTINGS & UPDATE UI ----------
+        function applySettingsAndRefresh() {
+            if (!spinSettings) return;
+            dailyLimit = spinSettings.dailyLimit || 10;
+            spinIntervalHours = spinSettings.spinIntervalHours || 2;
+            wheelBoxes = spinSettings.wheel?.boxes || [];
+            // ensure total probability 100
+            if (wheelBoxes.length === 0) {
+                // fallback hardcoded (but still controlled)
+                wheelBoxes = [
+                    { index: 1, amount: 2, probability: 30 },
+                    { index: 2, amount: 0, probability: 27 },
+                    { index: 3, amount: 6, probability: 23 },
+                    { index: 4, amount: 5, probability: 10 },
+                    { index: 5, amount: 8, probability: 7 },
+                    { index: 6, amount: 10, probability: 3 }
+                ];
+            }
+            totalProbability = wheelBoxes.reduce((acc, b) => acc + (b.probability || 0), 0);
+            // redraw wheel with latest amounts
+            drawWheel();
+            updateInfoCards();
+            updateSpinButtonState();
+        }
+
+        // update daily remain & next spin timer
+        function updateInfoCards() {
+            const dailyRemainEl = document.getElementById('dailyRemain');
+            const nextTimerEl = document.getElementById('nextSpinTimer');
+            if (!dailyRemainEl || !nextTimerEl) return;
+            // daily remain
+            const remain = Math.max(0, dailyLimit - todaySpinCount);
+            dailyRemainEl.innerText = remain;
+
+            // next spin (if lastSpin exists)
+            if (lastSpinTime) {
+                const nextAllowed = new Date(lastSpinTime.getTime() + spinIntervalHours * 60 * 60 * 1000);
+                const now = new Date();
+                const diffMs = nextAllowed - now;
+                if (diffMs <= 0) {
+                    nextTimerEl.innerText = 'এখনই';
+                } else {
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    nextTimerEl.innerText = `${hours}h ${mins}m`;
+                }
+            } else {
+                nextTimerEl.innerText = 'এখনই';
+            }
+        }
+
+        // enable/disable spin button based on all conditions
+        function updateSpinButtonState() {
+            const btn = document.getElementById('spinBtn');
+            if (!btn) return;
+            if (!spinSettings || !spinSettings.isActive) {
+                btn.disabled = true;
+                btn.title = spinSettings?.maintenanceMessage || 'সিস্টেম মেইনটেন্যান্স';
+                return;
+            }
+            if (todaySpinCount >= dailyLimit) {
+                btn.disabled = true;
+                btn.title = 'দৈনিক লিমিট শেষ';
+                return;
+            }
+            if (lastSpinTime) {
+                const nextAllowed = new Date(lastSpinTime.getTime() + spinIntervalHours * 60 * 60 * 1000);
+                if (new Date() < nextAllowed) {
+                    btn.disabled = true;
+                    btn.title = 'অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন';
+                    return;
+                }
+            }
+            btn.disabled = false;
+            btn.title = '';
+        }
+
+        // ---------- WEIGHTED RANDOM PICK ----------
+        function pickRandomBox() {
+            const random = Math.random() * totalProbability;
+            let cumulative = 0;
+            for (let box of wheelBoxes) {
+                cumulative += box.probability;
+                if (random < cumulative) return box;
+            }
+            return wheelBoxes[wheelBoxes.length-1]; // fallback
+        }
+
+        // ---------- SPIN ACTION ----------
+        async function handleSpin() {
+            if (isSpinning) return;
+            if (!currentUser) return;
+
+            // re-check conditions before spinning
+            await refreshSpinLimits();
+            if (!spinSettings || !spinSettings.isActive) {
+                showToast(spinSettings?.maintenanceMessage || 'মেইনটেন্যান্স মোড', 'warning');
+                return;
+            }
+            if (todaySpinCount >= dailyLimit) {
+                showToast('আজকের স্পিন লিমিট শেষ', 'warning');
+                return;
+            }
+            if (lastSpinTime) {
+                const nextAllowed = new Date(lastSpinTime.getTime() + spinIntervalHours * 60 * 60 * 1000);
+                if (new Date() < nextAllowed) {
+                    const minutes = Math.ceil((nextAllowed - new Date()) / (1000 * 60));
+                    showToast(`পরবর্তী স্পিনের জন্য ${minutes} মিনিট অপেক্ষা করুন`, 'warning');
+                    return;
+                }
+            }
+
+            // pick winning box
+            const selectedBox = pickRandomBox();
+            const reward = selectedBox.amount;
+
+            // start spinning animation
+            await performSpinAnimation(() => {
+                // callback after animation ends -> do transaction
+                commitSpinReward(selectedBox, reward);
+            });
+        }
+
+        // animation: rotate canvas rapidly and stop at segment corresponding to selectedBox
+        function performSpinAnimation(callback) {
+            if (isSpinning) return;
+            isSpinning = true;
+            document.getElementById('spinBtn').disabled = true;
+
+            const spins = 10; // number of full rotations
+            const targetAngle = (selectedBox.index - 1) * (Math.PI * 2 / wheelBoxes.length) + Math.PI/2; // align to pointer (top)
+            // we want final angle such that the top of the selected segment is under pointer
+            // pointer is at top (12 o'clock). The canvas draws segment 0 at angle 0 (right). we need to offset.
+            // For simplicity, we'll just rotate many times and set final angle based on index.
+            // But we want smooth animation. We'll increment rotationAngle gradually.
+
+            let start = performance.now();
+            const duration = 2000; // 2 sec
+            const startAngle = rotationAngle % (2*Math.PI);
+            const totalRotation = spins * 2 * Math.PI + (targetAngle - startAngle);
+
+            function animateSpin(now) {
+                const elapsed = now - start;
+                let progress = Math.min(elapsed / duration, 1);
+                // easing out
+                progress = 1 - Math.pow(1 - progress, 3);
+                rotationAngle = startAngle + totalRotation * progress;
+                drawWheel(rotationAngle);
+                if (progress < 1) {
+                    spinAnimationFrame = requestAnimationFrame(animateSpin);
+                } else {
+                    // finished
+                    rotationAngle = targetAngle; // fix exact
+                    drawWheel(rotationAngle);
+                    isSpinning = false;
+                    document.getElementById('spinBtn').disabled = false;
+                    updateSpinButtonState(); // restore real state
+                    callback();
+                }
+            }
+            spinAnimationFrame = requestAnimationFrame(animateSpin);
+        }
+
+        // commit reward via transaction
+        async function commitSpinReward(box, reward) {
+            if (!currentUser) return;
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const userRef = db.collection('users').doc(currentUser.uid);
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists) throw new Error('user not found');
+
+                    // update spinWallet
+                    transaction.update(userRef, {
+                        spinWallet: firebase.firestore.FieldValue.increment(reward)
+                    });
+
+                    // create history document
+                    const historyRef = userRef.collection('spin_history').doc();
+                    transaction.set(historyRef, {
+                        boxIndex: box.index,
+                        amount: reward,
+                        probability: box.probability,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+
+                // refresh limits and show success
+                await refreshSpinLimits();
+                updateSpinButtonState();
+                showToast(`অভিনন্দন! আপনি ${reward} টাকা পেয়েছেন 🎉`, 'success');
+            } catch (error) {
+                console.error('spin transaction error', error);
+                showToast('স্পিন ব্যর্থ হয়েছে, আবার চেষ্টা করুন', 'error');
+                // re-enable button if needed
+                document.getElementById('spinBtn').disabled = false;
+                updateSpinButtonState();
+            }
+        }
+
+        // ---------- DRAW WHEEL (with rotation) ----------
+        function drawWheel(rotateRad = 0) {
+            const boxes = wheelBoxes.length ? wheelBoxes : [];
+            if (boxes.length === 0) {
+                ctx.clearRect(0,0,400,400);
+                ctx.font = 'bold 18px Hind Siliguri';
+                ctx.fillStyle = '#1e293b';
+                ctx.fillText('কনফিগারেশন নেই', 80,200);
+                return;
+            }
+            const centerX = 200, centerY = 200;
+            const radius = 170;
+            const angleStep = (Math.PI * 2) / boxes.length;
+            const colors = ['#f97316','#3b82f6','#10b981','#8b5cf6','#ec4899','#eab308','#06b6d4','#6b7280'];
+            ctx.clearRect(0,0,400,400);
+            // draw segments
+            for (let i = 0; i < boxes.length; i++) {
+                const start = i * angleStep + rotateRad;
+                const end = (i+1) * angleStep + rotateRad;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, start, end);
+                ctx.closePath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // draw amount text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(start + angleStep/2);
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 18px "Hind Siliguri", sans-serif';
+                ctx.fillStyle = '#0f172a';
+                ctx.shadowColor = 'white';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`৳${boxes[i].amount}`, 110, 10);
+                ctx.restore();
+            }
+            // center circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 25, 0, 2*Math.PI);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+
+        // ---------- LOAD SPIN HISTORY (realtime) ----------
+        function loadSpinHistory(uid) {
+            const historyRef = db.collection('users').doc(uid).collection('spin_history')
+                .orderBy('createdAt', 'desc').limit(20);
+            const unsub = historyRef.onSnapshot((snap) => {
+                const container = document.getElementById('spinHistoryList');
+                if (snap.empty) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;"><i class="fa-regular fa-face-frown"></i> কোনো ইতিহাস নেই</div>';
+                    return;
+                }
+                let html = '';
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const date = data.createdAt ? data.createdAt.toDate() : new Date();
+                    const timeStr = date.toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+                    const amountClass = data.amount > 0 ? 'win-amount' : 'zero-amount';
+                    html += `<div class="history-item">
+                        <span>🎁 বক্স ${data.boxIndex}</span>
+                        <span class="${amountClass}">৳${data.amount}</span>
+                        <span class="timestamp">${timeStr}</span>
+                    </div>`;
+                });
+                container.innerHTML = html;
+            });
+            spinUnsubscribers.push(unsub);
+        }
+
+        // update info cards every minute (for countdown)
+        setInterval(() => {
+            if (currentUser) {
+                refreshSpinLimits().then(() => {
+                    updateInfoCards();
+                    updateSpinButtonState();
+                });
+            }
+        }, 60000);
+
+        // ---------- HELPER FUNCTIONS ----------
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.className = `toast-message ${type}`;
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function goToDashboard() {
+            window.location.href = 'index.html'; // main dashboard
+        }
+
+        // cleanup listeners on page unload
+        window.addEventListener('beforeunload', () => {
+            spinUnsubscribers.forEach(fn => fn());
+        });
+    </script>
+</body>
+</html>
