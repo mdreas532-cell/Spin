@@ -12,114 +12,110 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
     <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --bg-color: #f8fafc;
-            --white: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-        }
-
+        :root { --primary: #2563eb; --bg: #f8fafc; --white: #ffffff; --text: #0f172a; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Hind Siliguri', sans-serif; }
-        body { background: var(--bg-color); color: var(--text-main); }
+        body { background: var(--bg); color: var(--text); overflow-x: hidden; }
 
-        /* Fixed Header */
-        .header {
-            background: var(--primary); color: white; padding: 15px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header h1 { font-size: 20px; font-weight: 700; }
-        .wallet-badge { background: rgba(255,255,255,0.2); padding: 6px 15px; border-radius: 20px; font-weight: 700; font-size: 15px; }
+        /* Loading Screen */
+        #loadingScreen { position: fixed; inset: 0; background: white; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+
+        /* Login Screen */
+        #loginScreen { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; }
+        .login-box { background: var(--white); padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; }
+        .login-box h2 { text-align: center; margin-bottom: 25px; color: var(--primary); }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 14px; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 16px; outline: none; }
+        .login-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: 700; cursor: pointer; }
+
+        /* Spin Screen */
+        #spinScreen { display: none; }
+        .header { background: var(--primary); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 20px; letter-spacing: 1px; }
 
         .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        .wallet-card { background: var(--white); padding: 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #edf2f7; }
+        .wallet-card h3 { font-size: 14px; color: #64748b; margin-bottom: 5px; }
+        .wallet-card .balance { font-size: 32px; font-weight: 800; color: var(--primary); }
 
-        /* Info Section */
-        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .status-box { background: var(--white); padding: 15px; border-radius: 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.03); }
-        .status-box h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 5px; }
-        .status-box p { font-size: 18px; font-weight: 700; color: var(--primary); }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+        .status-box { background: var(--white); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid #edf2f7; }
+        .status-box h4 { font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
+        .status-box p { font-weight: 700; color: var(--text); font-size: 16px; }
 
-        /* Maintenance Alert */
-        #maintAlert { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: 600; display: none; }
+        /* Wheel UI */
+        .wheel-container { position: relative; width: 300px; height: 300px; margin: 20px auto; }
+        .pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); z-index: 5; color: #ef4444; font-size: 40px; }
+        .wheel { width: 100%; height: 100%; border-radius: 50%; border: 8px solid white; box-shadow: 0 0 25px rgba(0,0,0,0.1); transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1); background: conic-gradient(#f87171 0 60deg, #fbbf24 60deg 120deg, #34d399 120deg 180deg, #60a5fa 180deg 240deg, #a78bfa 240deg 300deg, #f472b6 300deg 360deg); }
+        .wheel-labels { position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+        .label { position: absolute; top: 0; left: 50%; width: 50px; height: 50%; transform-origin: 50% 100%; text-align: center; padding-top: 20px; font-weight: 800; color: white; margin-left: -25px; font-size: 18px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
 
-        /* Circular Wheel UI */
-        .wheel-container { position: relative; width: 300px; height: 300px; margin: 30px auto; }
-        .pointer {
-            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-            z-index: 10; width: 0; height: 0; 
-            border-left: 15px solid transparent; border-right: 15px solid transparent;
-            border-top: 30px solid #ef4444;
-        }
-        .wheel {
-            width: 100%; height: 100%; border-radius: 50%; border: 8px solid white;
-            box-shadow: 0 0 25px rgba(0,0,0,0.1); overflow: hidden;
-            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
-            background: conic-gradient(#f87171 0 60deg, #fbbf24 60deg 120deg, #34d399 120deg 180deg, #60a5fa 180deg 240deg, #a78bfa 240deg 300deg, #f472b6 300deg 360deg);
-        }
-        .wheel-text-layer { position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
-        .wheel-label {
-            position: absolute; top: 0; left: 50%; width: 60px; height: 50%;
-            transform-origin: 50% 100%; text-align: center; padding-top: 20px;
-            font-weight: 800; font-size: 18px; color: white; margin-left: -30px;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-        }
+        .spin-btn { width: 100%; padding: 18px; border-radius: 15px; background: var(--primary); color: white; border: none; font-size: 20px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); transition: 0.3s; }
+        .spin-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; transform: scale(0.98); }
 
-        /* Controls */
-        .spin-btn {
-            display: block; width: 100%; padding: 18px; border-radius: 15px;
-            background: var(--primary); color: white; border: none;
-            font-size: 20px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3); transition: 0.3s;
-        }
-        .spin-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
-
-        /* History */
-        .history-card { margin-top: 30px; background: var(--white); border-radius: 15px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.03); }
-        .history-card h2 { font-size: 16px; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
-        .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #f1f5f9; font-size: 14px; }
+        .history-card { margin-top: 30px; background: var(--white); padding: 20px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
+        .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #f1f5f9; font-size: 15px; }
         .history-item:last-child { border: none; }
-        .amt-tag { font-weight: 700; color: #10b981; }
-
-        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; color: white; padding: 12px 25px; border-radius: 30px; font-size: 14px; transition: 0.4s; opacity: 0; z-index: 1000; }
+        
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; color: white; padding: 12px 25px; border-radius: 30px; transition: 0.4s; opacity: 0; z-index: 1000; font-weight: 500; }
         #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
     </style>
 </head>
 <body>
 
-    <header class="header">
-        <h1>SmartPay Spin</h1>
-        <div class="wallet-badge"><i class="fa-solid fa-wallet"></i> ৳<span id="spinBal">0.00</span></div>
-    </header>
+    <div id="loadingScreen">
+        <i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--primary);"></i>
+    </div>
 
-    <div class="container">
-        <div id="maintAlert"></div>
-
-        <div class="status-grid">
-            <div class="status-box">
-                <h3>আজকের স্পিন</h3>
-                <p><span id="countToday">0</span> / <span id="limitTotal">0</span></p>
+    <div id="loginScreen">
+        <div class="login-box">
+            <h2>লগইন প্যানেল</h2>
+            <div class="input-group">
+                <label>ইমেইল এড্রেস</label>
+                <input type="email" id="loginEmail" placeholder="আপনার ইমেইল দিন">
             </div>
-            <div class="status-box">
-                <h3>পরবর্তী স্পিন</h3>
-                <p id="timerText">প্রস্তুত</p>
+            <div class="input-group">
+                <label>পাসওয়ার্ড</label>
+                <input type="password" id="loginPass" placeholder="******">
             </div>
+            <button class="login-btn" id="loginSubmitBtn" onclick="handleLogin()">লগইন করুন</button>
         </div>
+    </div>
 
-        <div class="wheel-container">
-            <div class="pointer"></div>
-            <div class="wheel" id="wheel">
-                <div class="wheel-text-layer" id="wheelLabels"></div>
+    <div id="spinScreen">
+        <header class="header">
+            <h1>SMARTPAY SPIN</h1>
+        </header>
+
+        <div class="container">
+            <div class="wallet-card">
+                <h3>স্পিন ওয়ালেট ব্যালেন্স</h3>
+                <div class="balance">৳<span id="spinBal">0.00</span></div>
             </div>
-        </div>
 
-        <button id="spinBtn" class="spin-btn" onclick="handleSpinAction()">স্পিন করুন</button>
+            <div class="status-grid">
+                <div class="status-box">
+                    <h4>আজকের লিমিট</h4>
+                    <p><span id="countToday">0</span> / <span id="limitTotal">0</span></p>
+                </div>
+                <div class="status-box">
+                    <h4>পরবর্তী স্পিন</h4>
+                    <p id="timerText">অপেক্ষা করুন...</p>
+                </div>
+            </div>
 
-        <div class="history-card">
-            <h2><i class="fa-solid fa-history"></i> স্পিন হিস্ট্রি</h2>
-            <div id="historyList">
-                <p style="text-align: center; color: #94a3b8; padding: 10px;">লোড হচ্ছে...</p>
+            <div class="wheel-container">
+                <div class="pointer"><i class="fa-solid fa-caret-down"></i></div>
+                <div class="wheel" id="wheel">
+                    <div class="wheel-labels" id="wheelLabels"></div>
+                </div>
+            </div>
+
+            <button id="spinBtn" class="spin-btn" onclick="startSpinAction()">স্পিন করুন</button>
+
+            <div class="history-card">
+                <h2 style="font-size: 17px; margin-bottom: 15px; color: var(--primary);"><i class="fas fa-history"></i> স্পিন হিস্ট্রি</h2>
+                <div id="historyList"></div>
             </div>
         </div>
     </div>
@@ -127,7 +123,7 @@
     <div id="toast"></div>
 
     <script>
-        // 1. Firebase Config
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBY2R6jBre2pjrW3cN0QP8LGrLldgKWEtc",
             authDomain: "smartpay-4cae4.firebaseapp.com",
@@ -142,98 +138,118 @@
 
         let uid = null, config = null, isSpinning = false, lastSpin = null, todayCount = 0;
 
-        // 2. Anonymous Auth (No Login Screen Needed)
+        // --- AUTH PERSISTENCE LOGIC ---
         auth.onAuthStateChanged(user => {
+            const loading = document.getElementById('loadingScreen');
+            const loginUI = document.getElementById('loginScreen');
+            const spinUI = document.getElementById('spinScreen');
+
             if (user) {
                 uid = user.uid;
+                loginUI.style.display = 'none';
+                spinUI.style.display = 'block';
                 initApp();
             } else {
-                auth.signInAnonymously().catch(e => console.error("Auth failed", e));
+                loginUI.style.display = 'flex';
+                spinUI.style.display = 'none';
             }
+            loading.style.display = 'none';
         });
 
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            const btn = document.getElementById('loginSubmitBtn');
+
+            if(!email || !pass) return showToast("সব ঘর পূরণ করুন!");
+            
+            btn.disabled = true;
+            btn.innerText = "অপেক্ষা করুন...";
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .catch(err => {
+                    showToast("ভুল ইমেইল বা পাসওয়ার্ড!");
+                    btn.disabled = false;
+                    btn.innerText = "লগইন করুন";
+                });
+        }
+
+        // --- CORE SPIN APP LOGIC ---
         async function initApp() {
-            // Load Settings
             db.collection('spin_settings').doc('config').onSnapshot(doc => {
                 config = doc.data();
                 renderLabels();
-                syncData();
+                syncUserData();
             });
-        }
-
-        function syncData() {
-            // User Data
-            db.collection('users').doc(uid).onSnapshot(doc => {
-                const data = doc.data() || {};
-                document.getElementById('spinBal').innerText = (data.spinWallet || 0).toFixed(2);
-            });
-
-            // History & Limits
-            const startOfToday = new Date();
-            startOfToday.setHours(0,0,0,0);
-
-            db.collection('users').doc(uid).collection('spin_history')
-              .orderBy('createdAt', 'desc')
-              .onSnapshot(snap => {
-                  let html = '', count = 0;
-                  if (!snap.empty) lastSpin = snap.docs[0].data().createdAt?.toDate();
-
-                  snap.forEach(doc => {
-                      const d = doc.data();
-                      const date = d.createdAt?.toDate() || new Date();
-                      if (date >= startOfToday) count++;
-                      
-                      html += `<div class="history-item">
-                                 <span>বক্স ${d.boxIndex} (${date.toLocaleTimeString('bn-BD')})</span>
-                                 <span class="amt-tag">+৳${d.amount}</span>
-                               </div>`;
-                  });
-                  todayCount = count;
-                  document.getElementById('countToday').innerText = count;
-                  document.getElementById('historyList').innerHTML = html || '<p style="text-align:center;">কোনো রেকর্ড নেই</p>';
-                  updateUIConstraints();
-              });
         }
 
         function renderLabels() {
             const container = document.getElementById('wheelLabels');
             container.innerHTML = '';
             config.wheel.boxes.forEach((box, i) => {
-                const deg = (i * 60) + 30; // 6 boxes = 60 deg each
-                container.innerHTML += `<div class="wheel-label" style="transform: rotate(${deg}deg)">৳${box.amount}</div>`;
+                const deg = (i * 60) + 30;
+                container.innerHTML += `<div class="label" style="transform: rotate(${deg}deg)">৳${box.amount}</div>`;
             });
         }
 
-        function updateUIConstraints() {
+        function syncUserData() {
+            // Real-time Balance
+            db.collection('users').doc(uid).onSnapshot(doc => {
+                const data = doc.data() || {};
+                document.getElementById('spinBal').innerText = (data.spinWallet || 0).toFixed(2);
+            });
+
+            // Today's History and Counter
+            const today = new Date(); today.setHours(0,0,0,0);
+            db.collection('users').doc(uid).collection('spin_history')
+              .orderBy('createdAt', 'desc').onSnapshot(snap => {
+                  let html = '', count = 0;
+                  if (!snap.empty) lastSpin = snap.docs[0].data().createdAt?.toDate();
+                  
+                  snap.forEach(doc => {
+                      const d = doc.data();
+                      const date = d.createdAt?.toDate() || new Date();
+                      if (date >= today) count++;
+                      html += `<div class="history-item">
+                                 <span>বক্স ${d.boxIndex} (${date.toLocaleTimeString('bn-BD')})</span>
+                                 <span style="color:#10b981; font-weight:700">+৳${d.amount}</span>
+                               </div>`;
+                  });
+                  todayCount = count;
+                  document.getElementById('countToday').innerText = count;
+                  document.getElementById('historyList').innerHTML = html || '<p style="text-align:center; padding:10px;">কোনো ইতিহাস নেই</p>';
+                  checkEligibility();
+              });
+        }
+
+        function checkEligibility() {
             if (isSpinning) return;
             const btn = document.getElementById('spinBtn');
-            const alert = document.getElementById('maintAlert');
             document.getElementById('limitTotal').innerText = config.dailyLimit;
 
-            if (!config.isActive) {
-                alert.innerText = config.maintenanceMessage;
-                alert.style.display = 'block';
-                btn.disabled = true;
-                return;
+            if (!config.isActive) { 
+                btn.disabled = true; 
+                btn.innerText = "মেইনটেন্যান্স চলছে"; 
+                return; 
             }
-            alert.style.display = 'none';
-
-            if (todayCount >= config.dailyLimit) {
-                btn.disabled = true;
-                btn.innerText = "আজকের লিমিট শেষ";
-                return;
+            
+            if (todayCount >= config.dailyLimit) { 
+                btn.disabled = true; 
+                btn.innerText = "আজকের লিমিট শেষ"; 
+                return; 
             }
 
             if (lastSpin) {
-                const nextTime = lastSpin.getTime() + (config.spinIntervalHours * 3600000);
+                const waitTime = config.spinIntervalHours * 3600000;
+                const nextTime = lastSpin.getTime() + waitTime;
                 const diff = nextTime - Date.now();
-                if (diff > 0) {
-                    btn.disabled = true;
-                    startTimer(nextTime);
-                    return;
+                if (diff > 0) { 
+                    btn.disabled = true; 
+                    startTimer(nextTime); 
+                    return; 
                 }
             }
-            btn.disabled = false;
+            btn.disabled = false; 
             btn.innerText = "স্পিন করুন";
             document.getElementById('timerText').innerText = "প্রস্তুত";
         }
@@ -241,21 +257,22 @@
         function startTimer(target) {
             const itv = setInterval(() => {
                 const diff = target - Date.now();
-                if (diff <= 0) { clearInterval(itv); updateUIConstraints(); }
-                else {
+                if (diff <= 0) { 
+                    clearInterval(itv); 
+                    checkEligibility(); 
+                } else {
                     const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
                     document.getElementById('timerText').innerText = `${h}ঘ ${m}মি ${s}সে`;
                 }
             }, 1000);
         }
 
-        // 3. Spin Logic (Weighted Probability)
-        async function handleSpinAction() {
+        async function startSpinAction() {
             if (isSpinning) return;
-            isSpinning = true;
+            isSpinning = true; 
             document.getElementById('spinBtn').disabled = true;
 
-            // Pick Winner
+            // Pick Winner Logic
             const rand = Math.random() * 100;
             let cumulative = 0, winner = config.wheel.boxes[0];
             for (let box of config.wheel.boxes) {
@@ -263,18 +280,15 @@
                 if (rand < cumulative) { winner = box; break; }
             }
 
-            const boxIdx = winner.index - 1; // 0-based
+            const boxIdx = winner.index - 1;
             const totalDeg = (360 * 5) + (360 - (boxIdx * 60)) - 30;
-
             const wheel = document.getElementById('wheel');
             wheel.style.transform = `rotate(${totalDeg}deg)`;
 
             setTimeout(async () => {
                 await processReward(winner);
-                toast(`অভিনন্দন! আপনি জিতেছেন ৳${winner.amount}`);
+                showToast(`অভিনন্দন! আপনি ৳${winner.amount} জিতেছেন`);
                 isSpinning = false;
-                
-                // Silent Reset
                 wheel.style.transition = 'none';
                 wheel.style.transform = `rotate(${totalDeg % 360}deg)`;
                 setTimeout(() => wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0, 0.15, 1)', 50);
@@ -288,18 +302,17 @@
             await db.runTransaction(async (t) => {
                 const doc = await t.get(userRef);
                 const curBal = (doc.exists ? doc.data().spinWallet : 0) || 0;
-                
                 t.set(userRef, { spinWallet: curBal + box.amount }, { merge: true });
-                t.set(histRef, {
-                    boxIndex: box.index,
-                    amount: box.amount,
-                    probability: box.probability,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                t.set(histRef, { 
+                    boxIndex: box.index, 
+                    amount: box.amount, 
+                    probability: box.probability, 
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp() 
                 });
             });
         }
 
-        function toast(m) {
+        function showToast(m) {
             const t = document.getElementById('toast');
             t.innerText = m; t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
